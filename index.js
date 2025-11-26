@@ -59,43 +59,47 @@ async function getWalletAge(addr) {
 }
 
 app.post('/webhook', async (req, res) => {
-  for (const tx of req.body) {
-    if (cache.has(tx.signature)) continue;
-    cache.set(tx.signature, true);
+  try {
+    for (const tx of req.body) {
+      if (cache.has(tx.signature)) continue;
+      cache.set(tx.signature, true);
 
-    for (const t of tx.tokenTransfers || []) {
-      const buyer = t.toUserAccount;
-      if (!buyer || !await isFreshWallet(buyer)) continue;
+      for (const t of tx.tokenTransfers || []) {
+        const buyer = t.toUserAccount;
+        if (!buyer || !await isFreshWallet(buyer)) continue;
 
-      const solSpent = (tx.nativeTransfers?.find(nt => nt.toUserAccount === buyer)?.amount || 0) / 1e9;
-      if (solSpent < MIN_SOL) continue;
+        const solSpent = (tx.nativeTransfers?.find(nt => nt.toUserAccount === buyer)?.amount || 0) / 1e9;
+        if (solSpent < MIN_SOL) continue;
 
-      const mc = await getMarketCap(t.mint);
-      if (mc > MAX_MC) continue;
+        const mc = await getMarketCap(t.mint);
+        if (mc > MAX_MC) continue;
 
-      const symbol = t.tokenMetadata?.symbol || '???';
-      const name = t.tokenMetadata?.name || t.mint.slice(0,8);
-      const age = await getWalletAge(buyer);
-      const router = ROUTERS[tx.instructions?.[0]?.programId] || 'Unknown';
-      const source = tx.source || 'Unknown';
+        const symbol = t.tokenMetadata?.symbol || 'UNKNOWN';
+        const name = t.tokenMetadata?.name || t.mint.slice(0,8);
+        const age = await getWalletAge(buyer);
+        const router = ROUTERS[tx.instructions?.[0]?.programId] || "Unknown";
+        const source = tx.source || "Unknown";
 
-      const msg = 
-`FRESH WALLET BUY by @sk1freshiesbot
+        const msg = `FRESH WALLET BUY by @sk1freshbot\n\n` +
+                    `SOL Spent: ${solSpent.toFixed(3)}\n` +
+                    `Token: ${name} (${symbol})\n` +
+                    `MCap: $${mc.toLocaleString()}\n` +
+                    `Age: ${age}\n` +
+                    `Funded: ${source}\n` +
+                    `Router: ${router}\n\n` +
+                    `Buyer: \`${buyer.slice(0,8)}...${buyer.slice(-4)}\`\n` +
+                    `Tx: https://solscan.io/tx/${tx.signature}\``;
 
-SOL Spent: ${solSpent.toFixed(3)} SOL
-Token: ${name} (${symbol})
-MCap: $${mc.toLocaleString()}
-Age: ${age}
-Funded: ${source}
-Router: ${router}
-
-Buyer: \`${buyer.slice(0,8)}...${buyer.slice(-4)}\`
-Tx: https://solscan.io/tx/${tx.signature}\``;
-
-      bot.telegram.sendMessage('@your_test_channel_or_chat_id', msg, {parse_mode: 'Markdown'});
+        bot.telegram.sendMessage(1797632629, msg, {parse_mode: 'Markdown'});
+      }
     }
+
+    res.status(200).json({ status: "ok" });
+
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    res.status(200).json({ status: "ok" });
   }
-  res.sendStatus(200);
 });
 
 bot.start(ctx => ctx.reply('SK1 Freshies LIVE | ≥0.33 SOL | ≤$1.3M MC'));
@@ -105,3 +109,4 @@ app.listen(3000, () => {
   console.log('SK1 Freshies running with 0.33 SOL min + 1.3M MC max');
 
 });
+

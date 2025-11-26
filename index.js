@@ -103,5 +103,5 @@ bot.command('test', ctx => ctx.reply('Bot active – filters applied'));
 
 app.listen(3000, () => {
   console.log('SK1 Freshies running with 0.33 SOL min + 1.3M MC max');
-  bot.launch();
+
 });
